@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+      integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link
+      href="https://unpkg.com/boxicons@2.1.2/css/boxicons.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/swiper/swiper-bundle.min.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/swiper/swiper-bundle.min.js"></script>
+      <!-- GSAP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+  <!-- Font (optional) -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+<style>
+  .logo-write {
+    width: 90%;
+    max-width: 800px;
+  }
+
+  .logo-svg {
+    width: 100%;
+    height: auto;
+  }
+
+  .logo-text {
+    font-size: 60px;
+    font-family: 'Orbitron', sans-serif;
+    fill: none;
+    stroke: #ddd;
+    stroke-width: 2;
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+    text-shadow: 0 0 10px #9f1239;
+  }</style>
+
+  </head>
+  <body class="light">
+    <header>
+
+      <!-- User Wallet -->
+      {% if user.is_authenticated and user.userprofile.role == 'user' %}
+      <style>
+        #successMessage {
+          position: fixed;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background-color: #4CAF50;
+          color: white;
+          padding: 12px 24px;
+          border-radius: 8px;
+          font-weight: bold;
+          z-index: 9999;
+          display: none;
+          box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+      </style>
+      
+      <div id="customerWallet" class="wallet-sidebar">
+        <div class="wallet-header">
+          <h2>My Wallet</h2>
+          <button class="close-btn-wallet">&times;</button>
+        </div>
+      
+        <div class="wallet-section">
+          <p>Available Balance:</p>
+          <p class="wallet-balance" id="walletBalance">Loading...</p>
+        </div>
+      
+        <div class="wallet-section">
+          <button onclick="showRechargeForm()" class="charge-btn">Recharge Balance</button>
+      
+          <form id="rechargeForm" class="recharge-form" style="display: none;" onsubmit="submitRecharge(event)">
+            <input type="number" class="recharge-input" id="rechargeAmount" placeholder="Enter amount">
+            <p id="errorMessage" class="error-message" style="display: none;">Please enter an amount!</p>
+            <button type="submit" class="charge-btn Confirm-wallet">Confirm Recharge</button>
+          </form>
+      
+          <p id="successMessage" class="success-message">Recharge completed successfully!</p>
+        </div>
+      
+        <div class="wallet-section">
+          <h3>Recent Transactions:</h3>
+          <div class="mySwiper z">
+            <ul class="transaction-list swiper-wrapper" id="transactionList">
+              <li>Loading...</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="wallet-section">
+          <div class="mySwiper z swiper-navigation-buttons">
+            <div class="swiper-button-next btn_swip nxt"></div>
+            <div class="swiper-button-prev btn_swip bc"></div>
+          </div>
+        </div>
+      </div>
+      
+      <script>
+        var token = "";
+        {% if user.is_authenticated and user.auth_token %}
+          token = "Token {{ user.auth_token.key }}";
+        {% endif %}
+      
+        document.addEventListener('DOMContentLoaded', function () {
+          fetch('/api/wallet/', {
+            headers: {
+              'Authorization': token,
+              'Content-Type': 'application/json'
+            }
+          })
+          .then(res => res.json())
+          .then(data => {
+            document.getElementById("walletBalance").innerText = data.balance + " EGP";
+            const list = document.getElementById("transactionList");
+            list.innerHTML = "";
+            let jhs = 0;
+            data.transactions.forEach(tx => {
+              let sign = tx.transaction_type === "charge" || tx.transaction_type === "earning" ? "+" : "-";
+              let item = `<li class="swiper-slide">${sign}${tx.amount} EGP - ${tx.description}</li>`;
+              list.innerHTML += item;
+              jhs++;
+            });
+            if(jhs == 0){
+              document.querySelector(".wallet-section.none").style.display = "none";
+              document.querySelector(".wallet-section.none2").style.display = "none";
+            }
+          })
+          .catch(err => {
+            console.error("فشل في تحميل المحفظة:", err);
+          });
+        });
+      
+        function showRechargeForm() {
+          document.getElementById("rechargeForm").style.display = "block";
+          document.getElementById("errorMessage").style.display = "none";
+          document.getElementById("successMessage").style.display = "none";
+        }
+      
+        function submitRecharge(event) {
+          event.preventDefault();
+      
+          const amount = document.getElementById("rechargeAmount").value;
+          if (!amount) {
+            document.getElementById("errorMessage").style.display = "block";
+            return;
+          }
+      
+          fetch('/api/wallet/charge/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token
+            },
+            body: JSON.stringify({ amount: amount })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.url) {
+              document.getElementById("successMessage").innerText = "Recharge request created successfully!";
+              document.getElementById("successMessage").style.display = "block";
+              setTimeout(() => {
+                document.getElementById("successMessage").style.display = "none";
+                window.location.href = data.url;
+              }, 2000); // عرض الرسالة ثم الانتقال خلال ثانيتين
+            } else {
+              alert("حدث خطأ أثناء محاولة الشحن");
+            }
+          })
+          .catch(error => {
+            console.error("خطأ في الشحن:", error);
+            alert("فشل في تنفيذ الشحن");
+          });
+        }
+      
+      </script>
+      {% endif %}
+      
+
+      {% if user.is_authenticated and user.userprofile.role == 'saler'  or user.userprofile.role == 'delivery_agent'%}
+      <div id="customerWallet" class="wallet-sidebar">
+        <div class="wallet-header">
+          <h2>My Wallet</h2>
+          <button class="close-btn-wallet">&times;</button>
+        </div>
+    
+        <div class="wallet-section">
+          <p>Available Balance:</p>
+          <p class="wallet-balance" id="walletBalance">Loading...</p>
+        </div>
+    
+        <div class="wallet-section">
+          <button onclick="showRechargeForm()" class="charge-btn">Recharge Balance</button>
+    
+          <form id="rechargeForm" class="recharge-form" style="display: none;" onsubmit="submitRecharge(event)">
+            <input type="number" class="recharge-input" id="rechargeAmount" placeholder="Enter amount">
+            <p id="errorMessage" class="error-message" style="display: none;">Please enter an amount!</p>
+            <button type="submit" class="charge-btn Confirm-wallet">Confirm Recharge</button>
+          </form>
+    
+          <p id="successMessage" class="success-message" style="display: none;">Recharge completed successfully!</p>
+        </div>
+    
+        <div class="wallet-section">
+          <a href="#" onclick="withdrawFunds()" class="charge-btn Confirm-wallet" style="display: block; text-decoration: none;">Withdraw Funds</a>
+        </div>
+    
+        <div class="wallet-section none">
+          <h3>Recent Transactions:</h3>
+          <div class="mySwiper xx">
+            <ul class="transaction-list swiper-wrapper" id="transactionList">
+              <li>Loading...</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="wallet-section none2">
+          <div class="mySwiper xx swiper-navigation-buttons">
+            <div class="swiper-button-next btn_swip nxt"></div>
+            <div class="swiper-button-prev btn_swip bc"></div>
+          </div>
+        </div>
+      </div>
+     
+ 
+      
+
+    
+      <script>
+        var token = "";
+        {% if user.is_authenticated and user.auth_token %}
+          token = "Token {{ user.auth_token.key }}";
+        {% endif %}
+        console.log("Token sent:", token);
+    
+        document.addEventListener('DOMContentLoaded', function () {
+          fetch('/api/wallet/', {
+            headers: {
+              'Authorization': token,
+              'Content-Type': 'application/json'
+            }
+          })
+          .then(res => res.json())
+          .then(data => {
+            document.getElementById("walletBalance").innerText = data.balance + " EGP";
+            const list = document.getElementById("transactionList");
+            list.innerHTML = "";
+            let jhs = 0;
+            data.transactions.forEach(tx => {
+              let sign = tx.transaction_type === "charge" || tx.transaction_type === "earning" ? "+" : "-";
+              let item = `<li class="swiper-slide">${sign}${tx.amount} EGP - ${tx.description}</li>`;
+              list.innerHTML += item;
+              jhs++;
+            });
+            if(jhs == 0){
+              document.querySelector(".wallet-section.none").style.display = "none";
+              document.querySelector(".wallet-section.none2").style.display = "none";
+            }
+          })
+          .catch(err => {
+            console.error("فشل في تحميل المحفظة:", err);
+          });
+        });
+    
+        function showRechargeForm() {
+          document.getElementById("rechargeForm").style.display = "block";
+          document.getElementById("errorMessage").style.display = "none";
+          document.getElementById("successMessage").style.display = "none";
+        }
+    
+        function submitRecharge(event) {
+          event.preventDefault();
+    
+          const amount = document.getElementById("rechargeAmount").value;
+          if (!amount) {
+            document.getElementById("errorMessage").style.display = "block";
+            return;
+          }
+    
+          fetch('/api/wallet/charge/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token
+            },
+            body: JSON.stringify(
+              {
+                amount: amount
+              }
+            )
+          })
+          .then(res => res.json())
+          .then(data => {
+            console.log("Stripe URL:", data.url);
+            if (data.url) {
+              window.location.href = data.url;
+            } else {
+              alert("حدث خطأ أثناء محاولة الشحن");
+            }
+          })
+          .catch(error => {
+            console.error("خطأ في الشحن:", error);
+            alert("فشل في تنفيذ الشحن");
+          });
+        }
+    
+        function withdrawFunds() {
+          const amount = prompt("Enter amount to withdraw:");
+          if (!amount || isNaN(amount)) {
+            alert("يرجى إدخال مبلغ صحيح.");
+            return;
+          }
+    
+          fetch('/api/wallet/withdraw/', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': token
+            },
+            body: JSON.stringify(
+              {
+                "amount": amount
+              }
+            )
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.message) {
+              alert("تم إرسال طلب السحب بنجاح ✅");
+              location.reload();
+            } else {
+              alert(data.error || "فشل في تنفيذ السحب");
+            }
+          })
+          .catch(error => {
+            console.error("خطأ في السحب:", error);
+            alert("فشل في تنفيذ السحب");
+          });
+        }
+    
+        function openCustomerWallet() {
+          const wallet = document.getElementById("customerWallet");
+          wallet.style.display = "block";
+          wallet.style.opacity = 1;
+        }
+      </script>
+    {% endif %}
+    
+
+      <div class="container">
+        <nav>
+          <div class="menu-toggle" id="menu-toggle">
+            <i class="fas fa-bars"></i>
+          </div>
+
+          <div>
+            <a href="{% url 'index' %}" class="z"><h1 id="store-title"></h1></a>
+          </div>
+          <div class="linkes">
+            {% if user.is_authenticated %}
+              {% if user.userprofile.role == 'saler' %}
+                <a href="{% url 'add_product' %}" class="{% if request.resolver_match.url_name == 'add_product' %}active{% endif %}">
+                  <p><i class="fas fa-plus"></i> Add Product</p>
+                </a>
+                <a href="{% url 'product-management' %}" class="{% if request.resolver_match.url_name == 'product-management' %}active{% endif %}">
+                  <p><i class="fas fa-cog"></i> Manage Products</p>
+                </a>
+                <a href="{% url 'my_orders' %}" class="{% if request.resolver_match.url_name == 'my_orders' %}active{% endif %}">
+                  <p><i class="fas fa-box"></i> My Orders</p>
+                </a>
+                <a href="{% url 'account' %}" class="{% if request.resolver_match.url_name == 'account' %}active{% endif %}">
+                  <p><i class="fas fa-user"></i> My Account</p>
+                </a>
+              {% elif user.userprofile.role == 'delivery_agent' %}
+                <a href="{% url 'available_orders' %}" class="{% if request.resolver_match.url_name == 'available_orders' %}active{% endif %}">
+                  <p><i class="fas fa-box-open"></i> Available Orders</p>
+                </a>
+                <a href="{% url 'delivery_earnings' %}" class="{% if request.resolver_match.url_name == 'delivery_earnings' %}active{% endif %}">
+                  <p><i class="fas fa-truck"></i> My Deliveries</p>
+                </a>
+                <a href="{% url 'my_orders' %}" class="{% if request.resolver_match.url_name == 'my_orders' %}active{% endif %}">
+                  <p><i class="fas fa-history"></i> Order History</p>
+                </a>
+                <a href="{% url 'account' %}" class="{% if request.resolver_match.url_name == 'account' %}active{% endif %}">
+                  <p><i class="fas fa-user"></i> My Account</p>
+                </a>
+              {% elif user.is_superuser %}
+                <a href="/admin/" class="{% if request.resolver_match.url_name == 'admin' %}active{% endif %}">
+                  <p><i class="fas fa-shield-alt"></i> Admin Panel</p>
+                </a>
+                <a href="{% url 'allproducts' %}" class="{% if request.resolver_match.url_name == 'allproducts' %}active{% endif %}">
+                  <p></i> All Product</p>
+                </a>
+                <a href="{% url 'about' %}" class="{% if request.resolver_match.url_name == 'about' %}active{% endif %}">
+                  <p></i> About</p>
+                </a>
+                <a href="{% url 'contact' %}" class="{% if request.resolver_match.url_name == 'contact' %}active{% endif %}">
+                  <p></i> Contact</p>
+                </a>
+              {% else %}
+                
+                <a href="{% url 'index' %}" class="{% if request.resolver_match.url_name == 'index' %}active{% endif %}">
+                  <p></i> Home</p>
+                </a>
+                <a href="{% url 'allproducts' %}" class="{% if request.resolver_match.url_name == 'allproducts' %}active{% endif %}">
+                  <p></i> All Product</p>
+                </a>
+                <a href="{% url 'about' %}" class="{% if request.resolver_match.url_name == 'about' %}active{% endif %}">
+                  <p></i> About</p>
+                </a>
+                <a href="{% url 'contact' %}" class="{% if request.resolver_match.url_name == 'contact' %}active{% endif %}">
+                  <p></i> Contact</p>
+                </a>
+              {% endif %}
+            {% else %}
+              <a href="{% url 'login' %}" class="{% if request.resolver_match.url_name == 'login' %}active{% endif %}">
+                <p></i> Login</p>
+              </a>
+              <a href="{% url 'register' %}" class="{% if request.resolver_match.url_name == 'register' %}active{% endif %}">
+                <p></i> Register</p>
+              </a>
+              <a href="{% url 'about' %}" class="{% if request.resolver_match.url_name == 'about' %}active{% endif %}">
+                <p></i> About</p>
+              </a>
+              <a href="{% url 'contact' %}" class="{% if request.resolver_match.url_name == 'contact' %}active{% endif %}">
+                <p></i> Contact</p>
+              </a>
+            {% endif %}
+          </div>
+
+          <div class="side-menu" id="sideMenu">
+            <div class="close-btn">
+              <i class="fas fa-times"></i>
+            </div>
+            <div class="logo-write container"> 
+              <svg viewBox="0 0 500 100" class="logo-svg" preserveAspectRatio="xMidYMid meet">
+                <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" class="logo-text">STOREHUB</text>
+              </svg>
+            </div>
+
+          
+            <script>
+              window.addEventListener("DOMContentLoaded", () => {
+                const text = document.querySelector(".logo-text");
+          
+                gsap.timeline({ repeat: -1, repeatDelay: 1 })
+                  .to(text, {
+                    strokeDashoffset: 0,
+                    duration: 3,
+                    ease: "power2.inOut",
+                  })
+                  .to(text, {
+                    opacity: 0,
+                    duration: 0.5,
+                    delay: 1
+                  })
+                  .set(text, { strokeDashoffset: 1000, opacity: 1 });
+              });
+            </script>
+
+            
+
+            
+            
+          
+            {% if user.is_authenticated %}
+              {% if user.userprofile.role == 'saler' %}
+                <a href="{% url 'add_product' %}" class="{% if request.resolver_match.url_name == 'add_product' %}active{% endif %}">
+                  <i class="fas fa-plus"></i> Add Product
+                </a>
+                <a href="{% url 'product-management' %}" class="{% if request.resolver_match.url_name == 'product-management' %}active{% endif %}">
+                  <i class="fas fa-cog"></i> Manage Products
+                </a>
+                <a href="{% url 'my_orders' %}" class="{% if request.resolver_match.url_name == 'my_orders' %}active{% endif %}">
+                  <i class="fas fa-box"></i> My Orders
+                </a>
+                <a href="{% url 'account' %}" class="{% if request.resolver_match.url_name == 'account' %}active{% endif %}">
+                  <i class="fas fa-user"></i> My Account
+                </a>
+              {% elif user.userprofile.role == 'delivery' %}
+                <a href="{% url 'delivery_orders' %}" class="{% if request.resolver_match.url_name == 'delivery_orders' %}active{% endif %}">
+                  <i class="fas fa-truck"></i> My Deliveries
+                </a>
+                <a href="{% url 'available_orders' %}" class="{% if request.resolver_match.url_name == 'available_orders' %}active{% endif %}">
+                  <i class="fas fa-box-open"></i> Available Orders
+                </a>
+                <a href="{% url 'my_orders' %}" class="{% if request.resolver_match.url_name == 'my_orders' %}active{% endif %}">
+                  <i class="fas fa-history"></i> Order History
+                </a>
+                <a href="{% url 'account' %}" class="{% if request.resolver_match.url_name == 'account' %}active{% endif %}">
+                  <i class="fas fa-user"></i> My Account
+                </a>
+              {% elif user.is_superuser %}
+                <a href="/admin/" class="{% if request.resolver_match.url_name == 'admin' %}active{% endif %}">
+                  <i class="fas fa-shield-alt"></i> Admin Panel
+                </a>
+                <a href="{% url 'product-management' %}" class="{% if request.resolver_match.url_name == 'product-management' %}active{% endif %}">
+                  <i class="fas fa-cog"></i> Manage Products
+                </a>
+                <a href="{% url 'my_orders' %}" class="{% if request.resolver_match.url_name == 'my_orders' %}active{% endif %}">
+                  <i class="fas fa-box"></i> All Orders
+                </a>
+                <a href="{% url 'account' %}" class="{% if request.resolver_match.url_name == 'account' %}active{% endif %}">
+                  <i class="fas fa-user"></i> My Account
+                </a>
+              {% else %}
+                <a href="{% url 'wishlist' %}" class="{% if request.resolver_match.url_name == 'wishlist' %}active{% endif %}">
+                  <i class="fas fa-heart"></i> Wishlist
+                </a>
+                <a href="{% url 'cart' %}" class="{% if request.resolver_match.url_name == 'cart' %}active{% endif %}">
+                  <i class="fas fa-shopping-cart"></i> Cart
+                </a>
+                <a href="{% url 'my_orders' %}" class="{% if request.resolver_match.url_name == 'my_orders' %}active{% endif %}">
+                  <i class="fas fa-box"></i> My Orders
+                </a>
+                <a href="{% url 'account' %}" class="{% if request.resolver_match.url_name == 'account' %}active{% endif %}">
+                  <i class="fas fa-user"></i> My Account
+                </a>
+              {% endif %}
+            {% else %}
+              <a href="{% url 'login' %}" class="{% if request.resolver_match.url_name == 'login' %}active{% endif %}">
+                <i class="fas fa-sign-in-alt"></i> Login
+              </a>
+              <a href="{% url 'register' %}" class="{% if request.resolver_match.url_name == 'register' %}active{% endif %}">
+                <i class="fas fa-user-plus"></i> Register
+              </a>
+              <a href="{% url 'about' %}" class="{% if request.resolver_match.url_name == 'about' %}active{% endif %}">
+                <i class="fas fa-info-circle"></i> About
+              </a>
+              <a href="{% url 'contact' %}" class="{% if request.resolver_match.url_name == 'contact' %}active{% endif %}">
+                <i class="fas fa-envelope"></i> Contact
+              </a>
+            {% endif %}
+          </div>
+
+          <form class="header-form">
+            <input
+              type="text"
+              placeholder="Search Product"
+              class="search-input"
+              id="searchInput"
+              autocomplete="off"
+            />
+            <div class="search-results" id="searchResults">
+              <div class="search-loading">
+                <div class="spinner"></div>
+                <span>Searching...</span>
+              </div>
+              <div class="no-results">
+                <i class="fas fa-box-open"></i>
+                <span>No Results</span>
+              </div>
+            </div>
+            <div class="z">
+              <style>
+                /* الحاوية الرئيسية */
+                .message-dropdown {
+                  position: relative;
+                  display: inline-block;
+                }
+              
+                /* القائمة المنسدلة */
+                .message-box {
+                  display: none;
+                  position: fixed;
+                  right: 40px;;
+                  top: 90px;
+                  background-color: #fff;
+                  border: 1px solid #ddd;
+                  border-radius: 8px;
+                  width: 320px;
+                  max-height: 400px;
+                  overflow-y: auto;
+                  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+                  z-index: 9999;
+                  padding: 10px;
+                }
+              
+                .message-box .message {
+                  border-bottom: 1px solid #eee;
+                  padding: 8px 5px;
+                  font-size: 14px;
+                  position: relative;
+                }
+              
+                .message-box .message:last-child {
+                  border-bottom: none;
+                }
+              
+                .message-box .message .close-btn {
+                  position: absolute;
+                  right: 8px;
+                  top: 6px;
+                  cursor: pointer;
+                  color: #888;
+                  font-weight: bold;
+                  font-size: 16px;
+                }
+              
+                .message-box .message.error {
+                  background-color: #f8d7da;
+                  color: #842029;
+                  border-left: 3px solid #dc3545;
+                }
+              
+                .message-box .message.success {
+                  background-color: #d1e7dd;
+                  color: #0f5132;
+                  border-left: 3px solid #198754;
+                }
+              
+                .notification-badge {
+                  position: absolute;
+                  top: -5px;
+                  right: -10px;
+                  background: red;
+                  color: white;
+                  font-size: 10px;
+                  padding: 2px 6px;
+                  border-radius: 50%;
+                }
+              
+                .message-icon {
+                  font-size: 20px;
+                  cursor: pointer;
+                  position: relative;
+                }
+              </style>
+              <a href="#" id="user-icon"> <i class="fa-regular fa-user"></i></a>
+              
+
+              <div class="message-dropdown">
+                <a href="#" onclick="toggleMessageBox(event)">
+                  <i class="fa fa-envelope message-icon"></i>
+                  {% if messages %}
+                    <span class="notification-badge">{{ messages|length }}</span>
+                  {% endif %}
+                </a>
+              
+                {% if messages %}
+                  <div id="messageBox" class="message-box">
+                    {% for message in messages %}
+                      <div class="message {% if 'error' in message.tags %}error{% else %}success{% endif %}">
+                        {{ message }}
+                        <span class="close-btn" onclick="this.parentElement.style.display='none';">&times;</span>
+                      </div>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+              
+              <script>
+                function toggleMessageBox(event) {
+                  event.preventDefault();
+                  const box = document.getElementById("messageBox");
+                  if (box) {
+                    box.style.display = (box.style.display === "block") ? "none" : "block";
+                  }
+                }
+              
+                // إخفاء القائمة عند الضغط خارجها
+                window.addEventListener('click', function (e) {
+                  const box = document.getElementById('messageBox');
+                  const icon = document.querySelector('.fa-envelope');
+                  if (box && !box.contains(e.target) && !icon.contains(e.target)) {
+                    box.style.display = 'none';
+                  }
+                });
+              </script>
+              
+              
+              <a id="walletIcon"><i class="fas fa-wallet"></i></a>
+              
+            </div>
+
+            <div class="user-menu" id="accountDropdown">
+              <ul>
+                <li>
+                  <a href="{% url 'wishlist' %}">
+                    <i class="fa-regular fa-heart"></i>Wishlist
+                  </a>
+                </li>
+                <li>
+                  <a href="{% url 'cart' %}">
+                    <i class="fa-solid fa-cart-shopping"></i>Cart
+                  </a>
+                </li>
+                {% if user.is_authenticated %}
+                <li>
+                  <a href="{% url 'account' %}">
+                    <i class="fa-regular fa-user"></i> Manage My Account</a
+                  >
+                </li>
+                {% if user.userprofile.role == 'saler' %}
+                <li>
+                  <a href="{% url 'add_product' %}">
+                    <i class="fa-solid fa-plus"></i> Add Product</a
+                  >
+                </li>
+                <li>
+                  <a href="{% url 'product-management' %}">
+                    <i class="fa-solid fa-pen-to-square"></i> Manage Product</a
+                  >
+                </li>
+                {% endif %}
+                <li>
+                  <a href="{% url 'my_orders' %}">
+                    <i class="fa-solid fa-box"></i> My Order</a
+                  >
+                </li>
+                <li>
+                  <a href="{% url 'my_orders' %}?status=cancelled">
+                    <i class="fa-solid fa-ban"></i> My Cancellations
+                  </a>
+                </li>
+
+                <li>
+                  <a href="#"> <i class="fa-regular fa-star"></i> My Reviews</a>
+                </li>
+                <li>
+                  <a href="{% url 'account_logout' %}">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    Logout</a
+                  >
+                </li>
+                {% else %}
+                <li>
+                  <a href="{% url 'login' %}">
+                    <i class="fa-solid fa-sign-in"></i> Login</a
+                  >
+                </li>
+                <li>
+                  <a href="{% url 'register' %}">
+                    <i class="fa-solid fa-user-plus"></i> Sign Up</a
+                  >
+                </li>
+                {% endif %}
+              </ul>
+            </div>
+          </form>
+          <form class="header-form">
+            <input type="checkbox" id="toggle" />
+
+            <label class="toggle" for="toggle">
+              <i class="bx bxs-sun"></i>
+              <i class="bx bx-moon"></i>
+              <span class="ball"></span>
+            </label>
+          </form>
+        </nav>
+      </div>
+    </header>
+    
+    <script>
+
+      function showRechargeForm() {
+          document.getElementById('rechargeForm').style.display = 'block';
+      }
+
+      function rechargeWallet() {
+          const amount = document.getElementById('rechargeAmount').value;
+          const errorMsg = document.getElementById('errorMessage');
+          const successMsg = document.getElementById('successMessage');
+
+          if (!amount) {
+              errorMsg.style.display = 'block';
+              successMsg.style.display = 'none';
+          } else {
+              errorMsg.style.display = 'none';
+              successMsg.style.display = 'block';
+              document.getElementById('rechargeForm').style.display = 'none';
+
+              setTimeout(() => {
+                  successMsg.style.display = 'none';
+              }, 3000);
+          }
+      }
+  </script>
+<script>
+  function toggleFloatingMessages(event) {
+    event.preventDefault();
+    const dropdown = document.getElementById("floating-messages");
+    if (dropdown) {
+      dropdown.style.display = (dropdown.style.display === "block") ? "none" : "block";
+    }
+  }
+
+  // اختفاء القائمة لما تضغط في أي مكان خارجها
+  window.addEventListener('click', function (e) {
+    const box = document.getElementById('floating-messages');
+    const icon = document.querySelector('.fa-envelope');
+    if (box && !box.contains(e.target) && !icon.contains(e.target)) {
+      box.style.display = 'none';
+    }
+  });
+
+document.addEventListener("DOMContentLoaded", function () {
+  const wallet = document.querySelector(".wallet-sidebar");
+  const closeBtn = document.querySelector(".close-btn-wallet");
+  const walletIcon = document.getElementById("walletIcon");
+
+  if (walletIcon) {
+    walletIcon.addEventListener("click", () => {
+      wallet.classList.add("open");
+    });
+  }
+
+  let startX = null;
+  let isDragging = false;
+
+  document.addEventListener("touchstart", (e) => {
+    if (e.touches.length === 1) {
+      startX = e.touches[0].clientX;
+      isDragging = true;
+    }
+  });
+
+  document.addEventListener("touchmove", (e) => {
+    if (!isDragging || e.touches.length !== 1) return;
+    const currentX = e.touches[0].clientX;
+    const diff = currentX - startX;
+
+    if (diff < -70) {
+      wallet.classList.add("open");
+      isDragging = false;
+    }
+  });
+
+  document.addEventListener("touchend", () => {
+    startX = null;
+    isDragging = false;
+  });
+
+  document.addEventListener("click", (e) => {
+    if (
+      wallet.classList.contains("open") &&
+      !wallet.contains(e.target) &&
+      !e.target.closest("#walletIcon")
+    ) {
+      wallet.classList.remove("open");
+    }
+  });
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", () => {
+      wallet.classList.remove("open");
+    });
+  }
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+  if (window.innerWidth <= 1000) {
+    const side = document.querySelector("#sideMenu");
+    const close = document.querySelector(".side-menu .close-btn");
+    const sideIcon = document.getElementById("menu-toggle");
+
+    // فتح بالآيكون
+    if (sideIcon) {
+      sideIcon.addEventListener("click", () => {
+        side.classList.add("active");
+      });
+    }
+
+    let startX = null;
+    let isDragging = false;
+
+    // فتح بالسحب من اليمين لليسار
+    document.addEventListener("touchstart", (e) => {
+      if (e.touches.length === 1) {
+        startX = e.touches[0].clientX;
+        isDragging = true;
+      }
+    });
+
+    document.addEventListener("touchmove", (e) => {
+      if (!isDragging || e.touches.length !== 1) return;
+      const currentX = e.touches[0].clientX;
+      const diff = currentX - startX;
+
+      if (diff < 70 && diff > 0) {
+        side.classList.add("active");
+        isDragging = false;
+      }
+    });
+
+    document.addEventListener("touchend", () => {
+      startX = null;
+      isDragging = false;
+    });
+
+    // إغلاق عند الضغط خارج المحفظة
+    document.addEventListener("click", (e) => {
+      if (
+        side.classList.contains("active") &&
+        !side.contains(e.target) &&
+        !e.target.closest("#menu-toggle")
+      ) {
+        side.classList.remove("active");
+      }
+    });
+
+    // زر الإغلاق
+    if (close) {
+      close.addEventListener("click", () => {
+        side.classList.remove("active");
+      });
+    }
+  }
+});
+
+
+</script>
+
+
+<script src="{% static 'js/header.js' %}"></script>
+  </body>
+</html>

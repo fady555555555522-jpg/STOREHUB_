@@ -1,0 +1,188 @@
+{% extends 'pages/base.html' %}
+{% load static %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/style_delivery.css' %}" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<link href="https://unpkg.com/boxicons@2.1.2/css/boxicons.min.css" rel="stylesheet" />
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet" />
+
+<style>
+    .CustomerOrder {
+        display: flex;
+        gap: 20px;
+        padding: 20px;
+        height: calc(100vh - 100px);
+    }
+    
+    .content-container {
+        flex: 1;
+        overflow-y: auto;
+    }
+    
+    .map-container {
+        flex: 1;
+        min-height: 500px;
+        position: relative;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    #map {
+        width: 100%;
+        height: 100%; 
+        position: relative; 
+        z-index: 1;
+    }
+</style>
+
+    <div class="CustomerOrder">
+        <div class="content-container">
+            <div class="containera">
+                <div class="order-status">
+                <p>Order ID: #{{ order.id }}</p><br>
+                <h3>{{ order.get_status_display }}</h3>
+                    <div class="progress-bar">
+                        <div class="progress-line"></div>
+                    <div class="progress-completed" style="width: {{ progress_percentage }}%;"></div>
+                    <div class="progress-point {% if order.status != 'pending' %}active{% endif %}"></div>
+                    <div class="progress-point {% if order.status == 'in_progress' or order.status == 'on_way' or order.status == 'completed' %}active{% endif %}"></div>
+                    <div class="progress-point {% if order.status == 'on_way' or order.status == 'completed' %}active{% endif %}"></div>
+                    <div class="progress-point {% if order.status == 'completed' %}active{% endif %}"></div>
+                    </div>                    
+                    <div class="stages">
+                      <div class="stage">
+                        <div class="stage-name">
+                            <div class="stage-dot {% if order.status != 'pending' %}active{% endif %}"></div>
+                          <div><p>Order Confirmed</p></div>
+                        </div>
+                        <div class="stage-time"><p>{{ order.order_date|time:"H:i" }}</p></div>
+                      </div>
+                    
+                      <div class="stage">
+                        <div class="stage-name">
+                            <div class="stage-dot {% if order.status == 'in_progress' or order.status == 'on_way' or order.status == 'completed' %}active{% endif %}"></div>
+                            <div><p>In Progress</p></div>
+                        </div>
+                        <div class="stage-time"><p>{% if order.status == 'in_progress' or order.status == 'on_way' or order.status == 'completed' %}{{ order.order_date|time:"H:i" }}{% else %}-{% endif %}</p></div>
+                      </div>
+                    
+                      <div class="stage">
+                        <div class="stage-name">
+                            <div class="stage-dot {% if order.status == 'on_way' or order.status == 'completed' %}active{% endif %}"></div>
+                          <div><p>Out for Delivery</p></div>
+                        </div>
+                        <div class="stage-time"><p>{% if order.status == 'on_way' or order.status == 'completed' %}{{ order.order_date|time:"H:i" }}{% else %}-{% endif %}</p></div>
+                      </div>
+                    
+                      <div class="stage">
+                        <div class="stage-name">
+                            <div class="stage-dot {% if order.status == 'completed' %}active{% endif %}"></div>
+                          <div><p>Delivered</p></div>
+                        </div>
+                        <div class="stage-time"><p>{% if order.status == 'completed' %}{{ order.order_date|time:"H:i" }}{% else %}-{% endif %}</p></div>
+                    </div>
+                    </div>
+                </div>
+    
+                <div class="order-details">
+                    <h3>Order Details</h3><br>
+                {% for item in items %}
+                <p>
+                    <span>{{ item.product.name }}</span>
+                    <span>x{{ item.quantity }}</span>
+                </p><br>
+                {% endfor %}
+                    <hr class="separator">
+                    <p class="total">
+                        <span>Total Amount:</span>
+                    <span>${{ total_price|floatformat:2 }}</span>
+                      </p><br>
+                      
+                    <div class="delivery-time">
+                        <p>Estimated Delivery Time</p>
+                    <p style="font-size: 20px;" id="eta">Calculating...</p>
+                </div>
+                </div>
+                
+            {% if delivery_agent_profile %}
+                <div class="driver-info">
+                <img src="{{ delivery_agent_profile.profile_image.url|default:'/static/images/default-profile.jpg' }}" alt="Driver">
+                    <div>
+                    <h4>{{ order.delivery_agent.get_full_name }}</h4>
+                    <p>
+                        {% for i in filled_stars %}⭐{% endfor %}
+                        {% for i in empty_stars %}☆{% endfor %}
+                        {{ delivery_agent_profile.rating|floatformat:1 }}
+                    </p>
+                </div>
+                <button class="call-btn" onclick="window.location.href='tel:{{ delivery_agent_profile.phone_number }}'">
+                    📞 Call Driver
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="map-container">
+        <div id="map" style="width: 100%;
+        height: 100%; 
+        position: relative; 
+        z-index: 1;"></div>
+    </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+    const orderId = "{{ order.id }}";
+    const userRole = "{{ request.user.userprofile.role }}";
+
+    let map = L.map('map').setView([{{ client_lat|default:0 }}, {{ client_lng|default:0 }}], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    const icons = {
+        delivery_agent: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/1048/1048314.png', iconSize: [40, 40] }),
+        saler: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png', iconSize: [40, 40] }),
+        user: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/1946/1946429.png', iconSize: [40, 40] })
+    };
+
+    const markers = {};
+
+    function updateMarker(role, lat, lng) {
+        if (!markers[role]) {
+            markers[role] = L.marker([lat, lng], { icon: icons[role] }).addTo(map).bindPopup(role);
+        } else {
+            markers[role].setLatLng([lat, lng]);
+        }
+    }
+
+    const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const socket = new WebSocket(`${wsProtocol}://${window.location.host}/ws/order_tracking/${orderId}/`);
+
+    socket.onmessage = function (event) {
+        const data = JSON.parse(event.data);
+        updateMarker(data.role, data.lat, data.lng);
+    };
+
+    // إرسال موقعي الحالي كلما أتحرك
+    function sendMyLiveLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(function (position) {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+
+                socket.send(JSON.stringify({
+                    role: userRole,
+                    lat: lat,
+                    lng: lng
+                }));
+
+                updateMarker(userRole, lat, lng);  // لتحديث ماركر نفسي كمان
+            });
+        }
+    }
+
+    sendMyLiveLocation();
+</script>
+
+{% endblock %}

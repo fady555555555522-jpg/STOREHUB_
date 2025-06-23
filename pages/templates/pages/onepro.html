@@ -1,0 +1,373 @@
+{% extends 'pages/base.html' %}
+
+{% block content %}
+
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"
+      integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer" />
+    <link
+      href="https://unpkg.com/boxicons@2.1.2/css/boxicons.min.css"
+      rel="stylesheet" />
+    <title>Store Hub | {{ product.name }}</title>
+    <style>
+      /* Like Icon (heart) */
+.ico .fa-heart {
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.ico .fa-heart.fa-solid,
+.ico .fa-heart.liked {
+  color: #9f1239 !important;
+}
+
+.dark .ico .fa-heart.fa-solid,
+.dark .ico .fa-heart.liked {
+  color: #e74c3c !important;
+}
+
+.ico .fa-heart:hover {
+  transform: scale(1.1);
+}
+    </style>
+  </head>
+
+  <body class="light">
+
+    <section class="address">
+      <div class="container">
+        <p style="font-size: 18px; font-weight: 500;"><a href="{% url 'index' %}" style="color: var(--text-color);">Home</a> <span class="span1">/</span> <span id="proName">{{ product.name }}</span></p>
+      </div>
+    </section>
+
+    <section class="imgAndDetailes">
+      <div class="container">
+        <div class="img">
+          <img src="{{ product.image.url }}" alt="{{ product.name }}" id="proImg" />
+        </div>
+        <div class="detailes">
+          <h3 id="proname">{{ product.name }}</h3>
+          <div class="stars">
+            {% for _ in star_list %}
+                <i class="fa-solid fa-star"></i>  
+            {% endfor %}
+    
+            {% for _ in empty_stars %}
+                <i class="fa-regular fa-star"></i>  
+            {% endfor %}
+    
+            <span>({{ rating }})</span>  
+            
+<button id="openRatingBtn" class="rate-product">Rate Product</button>
+
+<div id="ratingModal" style="
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right:0; bottom: 0;
+  background-color: rgba(0,0,0,0.5);
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+">
+  <div style="
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 300px;
+    text-align: center;
+  ">
+    <button id="closeModalBtn" style="float: right; background-color: transparent ;"><i class="fa-solid fa-circle-xmark remove" style="color: red; font-size: 22px; cursor: pointer; "></i></button>
+    
+    <form method="POST" action="{% url 'rate_product' product.id %}">
+      {% csrf_token %}
+      <div class="stars" style="font-size: 2rem; direction: rtl; user-select: none; cursor: pointer;">
+        {% for i in "54321" %}
+          <i class="fa-regular fa-star" data-value="{{ i }}"></i>
+        {% endfor %}
+      </div>
+      <input type="hidden" name="stars" id="stars_input" value="0">
+      <button type="submit" style="margin-top: 15px;" id="submitProduct">submit</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  const openBtn = document.getElementById('openRatingBtn');
+  const modal = document.getElementById('ratingModal');
+  const closeBtn = document.getElementById('closeModalBtn');
+  const stars = modal.querySelectorAll('.stars i');
+  const starsInput = modal.querySelector('#stars_input');
+
+  openBtn.addEventListener('click', () => {
+    modal.style.display = 'flex';
+  });
+
+  closeBtn.addEventListener('click', () => {
+    modal.style.display = 'none';
+  });
+
+  stars.forEach(star => {
+    star.addEventListener('click', () => {
+      const val = parseInt(star.getAttribute('data-value'));
+      starsInput.value = val;
+      updateStars(val);
+    });
+  });
+
+  function updateStars(rating) {
+    stars.forEach(star => {
+      const starVal = parseInt(star.getAttribute('data-value'));
+      if (starVal <= rating) {
+        star.classList.remove('fa-regular');
+        star.classList.add('fa-solid');
+      } else {
+        star.classList.remove('fa-solid');
+        star.classList.add('fa-regular');
+      }
+    });
+  }
+
+  const initialRating = {{ user_rating|default:"0" }};
+  if (initialRating > 0) {
+    starsInput.value = initialRating;
+    updateStars(initialRating);
+  }
+</script>
+        </div>
+          <h3 id="sallery">${{ product.price }}</h3>
+          <p id="caption">
+            {{ product.description }}
+          </p>
+
+          <div class="buyLove">
+            <div class="Number">
+              <div class="dec" onclick="decrementQuantity()">-</div>
+              <div id="Num">1</div>
+              <div class="inc" onclick="incrementQuantity()">+</div>
+            </div>
+            <button onclick="addToCart({{ product.id }})">Buy Now</button>
+            <div class="ico">
+              <i class="fa-{% if product.id in liked_products %}solid{% else %}regular{% endif %} fa-heart" 
+                 onclick="toggleLike({{ product.id }}, this, event)"
+                 {% if product.id in liked_products %}style="color: #9f1239;"{% endif %}></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==> Start Comment <== -->
+    <section class="comments-section">
+      <div class="comments-grid">
+        {% for pair in comment_pairs %}
+          {% for comment in pair %}
+            {% if comment %}
+              <div class="comment-container">
+                <div class="comment-header">
+                  <img src="{% if comment.profile_image_url %}{{ comment.profile_image_url }}{% else %}{% static 'images/default_driver.jpg' %}{% endif %}" 
+                       alt="{{ comment.user.username }}" 
+                       class="user-avatar">
+                  <div class="comment-metadata">
+                    <h4 class="user-name">{{ comment.user.username }}</h4>
+                    <span class="comment-date">{{ comment.created_at|date:"F d, Y" }}</span>
+                  </div>
+                  <span class="sentiment-badge sentiment-{{ comment.sentiment }}">
+                    {{ comment.get_sentiment_display }}
+                  </span>
+                </div>
+                <p class="comment-text">{{ comment.comment_text }}</p>
+              </div>
+            {% endif %}
+          {% endfor %}
+        {% endfor %}
+      </div>
+
+      {% if hidden_comment_pairs %}
+        <button class="show-more-btn" id="showMoreComments">View more comments</button>
+        
+        <div id="hiddenComments" style="display: none;">
+          <div class="comments-grid">
+            {% for pair in hidden_comment_pairs %}
+              {% for comment in pair %}
+                {% if comment %}
+                  <div class="comment-container">
+                    <div class="comment-header">
+                      <img src="{% if comment.profile_image_url %}{{ comment.profile_image_url }}{% else %}{% static 'images/default_driver.jpg' %}{% endif %}" 
+                           alt="{{ comment.user.username }}" 
+                           class="user-avatar">
+                      <div class="comment-metadata">
+                        <h4 class="user-name">{{ comment.user.username }}</h4>
+                        <span class="comment-date">{{ comment.created_at|date:"F d, Y" }}</span>
+                      </div>
+                      <span class="sentiment-badge sentiment-{{ comment.sentiment }}">
+                        {{ comment.get_sentiment_display }}
+                      </span>
+                    </div>
+                    <p class="comment-text">{{ comment.comment_text }}</p>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="comment-form-container">
+        {% if user.is_authenticated %}
+          <form method="POST" action="{% url 'add_comment' product.id %}" class="comment-form">
+            {% csrf_token %}
+            <textarea name="comment" 
+                      class="comment-textarea" 
+                      placeholder="Write your comment here..." 
+                      required></textarea>
+            <button type="submit" class="show-more-btn">Add Comment</button>
+          </form>
+        {% else %}
+          <p style="text-align: center;">Please <a href="{% url 'login' %}" style="color: var(--main-color); text-decoration: underline;">Login </a>to write a comment.</p>
+        {% endif %}
+      </div>
+    </section>
+    <!-- ==> End Comment <== -->
+
+    <section class="RelatedItem">
+      <div class="container">
+        <div class="RelatedItemtext">
+          <span class="shape">.</span>
+          <p>Related Item</p>
+        </div>
+        <div class="products">
+          {% for item in related_items %}
+          <div class="pro">
+              <div class="icons">
+                  <div class="icon">
+                      <i class="fa-regular fa-heart" ></i>
+                      <i class="fa-regular fa-eye" ></i>
+                  </div>
+              </div>
+              <div class="addcart">
+                  <div class="text">
+                      <p>Add To Cart</p>
+                  </div>
+              </div>
+              <div class="img">
+                  <a href="{% url 'product' item.id %}">
+                      <img src="{{ item.image.url }}" alt="{{ item.name }}" />
+                  </a>
+              </div>
+              <div class="detailes">
+                  <h5>{{ item.name }}</h5>
+                  <div class="dis">
+                      <div class="sallery">
+                          <span class="new-sall">${{ item.price }}</span>
+                      </div>
+                      <div class="stars">
+                        {% for _ in item.star_list %}
+                            <i class="fa-solid fa-star"></i>  
+                        {% endfor %}
+                    
+                        {% for _ in item.empty_stars %}
+                            <i class="fa-regular fa-star"></i>  
+                        {% endfor %}
+                    
+                        <span>({{ item.rating }})</span>  
+                    </div>
+                    
+                  </div>
+              </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+    <script src="{% static 'js/darkmode.js' %}"></script>
+    <script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+        // تحديث حالة أيقونة القلب عند تحميل الصفحة
+        const heartIcon = document.querySelector('.ico .fa-heart');
+        if (heartIcon && heartIcon.classList.contains('fa-solid')) {
+            heartIcon.style.color = '#9f1239';
+        }
+
+        let quantity = 1;
+        const numElement = document.getElementById('Num');
+
+        window.incrementQuantity = function() {
+            quantity++;
+            numElement.textContent = quantity;
+        };
+
+        window.decrementQuantity = function() {
+            if (quantity > 1) {
+                quantity--;
+                numElement.textContent = quantity;
+            }
+        };
+
+        window.addToCart = function(productId) {
+            fetch(`/add-to-cart/?product_id=${productId}&quantity=${quantity}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    let cartQuantity = data.cart[productId].quantity;
+                    alert(`✅ المنتج تم إضافته بنجاح! الكمية الحالية: ${cartQuantity}`);
+                    window.location.href = "/cart/";
+                } else {
+                    alert("❌ حدث خطأ أثناء الإضافة!");
+                }
+            })
+            .catch(error => console.error('❌ Fetch Error:', error));
+        };
+
+        window.toggleLike = function(productId, btn, event) {
+            event.preventDefault();
+
+            fetch(`/toggle-like/${productId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.liked) {
+                    btn.classList.remove('fa-regular');
+                    btn.classList.add('fa-solid');
+                    btn.style.color = '#9f1239';
+                } else {
+                    btn.classList.remove('fa-solid');
+                    btn.classList.add('fa-regular');
+                    btn.style.color = '';
+                }
+            })
+            .catch(error => console.error('❌ Error:', error));
+        };
+
+        const showMoreBtn = document.getElementById('showMoreComments');
+        const hiddenComments = document.getElementById('hiddenComments');
+
+        if (showMoreBtn) {
+            showMoreBtn.addEventListener('click', function() {
+                if (hiddenComments.style.display === 'none') {
+                    hiddenComments.style.display = 'block';
+                    showMoreBtn.textContent = 'Show Fewer Comments';
+                } else {
+                    hiddenComments.style.display = 'none';
+                    showMoreBtn.textContent = 'Show More Comments';
+                }
+            });
+        }
+    });
+    </script>
+  </body>
+</html>
+{% endblock content %} 

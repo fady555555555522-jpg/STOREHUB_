@@ -1,0 +1,235 @@
+{% extends 'pages/base.html' %}
+{% load static %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'css/style_delivery.css' %}" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<link href="https://unpkg.com/boxicons@2.1.2/css/boxicons.min.css" rel="stylesheet" />
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet" />
+
+
+
+<div class="container-delivery-order">
+    <div class="left-panel">
+        <div class="customer-info">
+            <h3 style="margin-bottom: 15px;">Customer Information</h3>
+            <p><i class="fas fa-user icon"></i>{{ order.customer.get_full_name }}</p>
+            <p><i class="fas fa-id-card icon"></i>Customer ID: #{{ order.customer.id }}</p>
+            <p><i class="fas fa-phone icon"></i>{{ order.customer.userprofile.phone_number }}</p>
+        </div>
+        <div class="order-details">
+            <h3 style="margin-bottom: 15px;"><i class="fas fa-clipboard-list icon"></i> Order Details</h3>
+            {% for item in items %}
+            <div>
+                <span>{{ item.product.name }}</span>
+                <span>${{ item.product.price }}</span>
+            </div>
+            {% endfor %}
+            <div class="total">
+                <span>Total</span>
+                <span>${{ total_price|floatformat:2 }}</span>
+            </div>
+        </div>
+        <div class="delivery-status">
+            <h3 style="margin-bottom: 25px;">Delivery Status</h3>
+        
+            <div class="status-item" id="step-received">
+                <div class="status-item-span">
+                    <span><i class="fa-solid fa-circle-check" style="color: var(--main-color); cursor: pointer;"></i>Order Received</span>
+                    <span>{{ order.order_date|time:"H:i" }}</span>
+                </div>
+            </div>
+        
+            <div class="status-item" id="step-preparing">
+                <div class="status-item-span">
+                    <span><i class="fa-solid fa-circle-check" style="color: var(--main-color); cursor: pointer;"></i>Preparing Order</span>
+                    <span>{{ order.order_date|time:"H:i" }}</span>
+                </div>
+            </div>
+        
+            <div class="status-item" id="step-onway">
+                <div class="status-item-span">
+                    <span><i class="fa-regular fa-circle" style="color: #2196F3; cursor: pointer;"></i>On the Way</span>
+                    <span id="onway-time">{% if order.status == 'on_way' or order.status == 'completed' %}{{ order.order_date|time:"H:i" }}{% else %}-{% endif %}</span>
+                </div>
+            </div>
+        
+            <div class="status-item" id="step-delivered" style="color: gray;">
+                <i class="fa-regular fa-circle"></i>
+                <span>Delivered</span>
+            </div>
+        </div>
+        
+    </div>
+    <div class="right-panel">
+        <div class="right-panel-1" style="width: 100%;
+        height: 100%; 
+        position: relative; 
+        z-index: 1;">
+            <div class="map" id="map" ></div>
+            <div class="location-info">
+                <div class="location-info-icon">
+                    <i class="fas fa-map-marker-alt map-pin-pickup"style="color: var(--main-color);"></i>
+                    <div>
+                        <h4>Pickup Location</h4>
+                        <p>StoreHub St, Store District</p>
+                    </div>
+                </div>
+                <div class="location-info-icon">
+                    <i class="fas fa-map-marker-alt map-pin-delivery" style="color: #28a745;"></i>
+                    <div>
+                        <h4>Delivery Location</h4>
+                        <p>456 Customer Ave, Residential Area</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="right-panel-2">
+            <div class="delivery-info">
+                <div class="delivery-info-top">
+                    <div class="icon-info">
+                        <i class="fas fa-clock icon" style="color: var(--main-color);"></i>
+                        <div>
+                            <h4> Estimated Delivery Time</h4>
+                            <p id="eta">Calculating...</p>
+                        </div>
+                    </div>
+                    <div class="icon-info">
+                        <i class="fas fa-road icon"style="color: var(--main-color);"></i>
+                        <div>
+                            <h4> Distance</h4>
+                            <p id="distance">-</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="delivery-info-bottom">
+                    <button class="start-delivery" id="startDeliveryBtn"><i class="fa-solid fa-truck"></i>Start Delivery</button>
+                    <button class="complete-delivery" id="completeDeliveryBtn"><i class="fa-solid fa-circle-check"></i>Complete Delivery</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+const orderId = "{{ order.id }}";
+const userRole = "{{ request.user.userprofile.role }}";
+
+const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+const socket = new WebSocket(`${wsProtocol}://${window.location.host}/ws/order_tracking/${orderId}/`);
+
+let map = L.map('map').setView([{{ client_lat|default:0 }}, {{ client_lng|default:0 }}], 13);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+const icons = {
+    delivery_agent: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/1048/1048314.png', iconSize: [40, 40] }),
+    saler: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png', iconSize: [40, 40] }),
+    user: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/1946/1946429.png', iconSize: [40, 40] })
+};
+
+const markers = {};
+
+function updateMarker(role, lat, lng) {
+    if (!markers[role]) {
+        markers[role] = L.marker([lat, lng], { icon: icons[role] }).addTo(map).bindPopup(role);
+    } else {
+        markers[role].setLatLng([lat, lng]);
+    }
+}
+
+socket.onmessage = function (event) {
+    const data = JSON.parse(event.data);
+
+    if (data.lat && data.lng && data.role) {
+        updateMarker(data.role, data.lat, data.lng);
+    }
+
+    if (data.status) {
+        const statusText = document.getElementById('orderStatus');
+        if (statusText) {
+            statusText.textContent = `🚚 حالة الطلب: ${data.status}`;
+        }
+
+        if (data.status === 'in_progress' || data.status === 'on_way') {
+            activateStep('step-onway');
+        }
+
+        if (data.status === 'completed') {
+            activateStep('step-onway');
+            activateStep('step-delivered');
+        }
+    }
+};
+
+function activateStep(stepId) {
+    const step = document.getElementById(stepId);
+    if (step) {
+        step.style.color = '#000';
+        const icon = step.querySelector('i');
+        if (icon && icon.classList.contains('fa-circle')) {
+            icon.classList.remove('fa-regular', 'fa-circle');
+            icon.classList.add('fa-solid', 'fa-circle-check');
+            icon.style.color = 'var(--main-color)';
+        }
+        const timeSpan = step.querySelector('span:last-child');
+        if (timeSpan && timeSpan.textContent.trim() === '-') {
+            const now = new Date();
+            timeSpan.textContent = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        }
+    }
+}
+
+function sendMyLiveLocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            socket.send(JSON.stringify({ role: userRole, lat, lng }));
+            updateMarker(userRole, lat, lng);
+        });
+
+        navigator.geolocation.watchPosition(function (position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            socket.send(JSON.stringify({ role: userRole, lat, lng }));
+            updateMarker(userRole, lat, lng);
+        });
+    }
+}
+sendMyLiveLocation();
+
+document.addEventListener('DOMContentLoaded', function () {
+    const startBtn = document.getElementById('startDeliveryBtn');
+    const completeBtn = document.getElementById('completeDeliveryBtn');
+
+    if (startBtn) {
+        startBtn.onclick = function () {
+            fetch(`/orders/${orderId}/update-status/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'in_progress' })
+            }).then(() => {
+                socket.send(JSON.stringify({ status: 'in_progress' }));
+                activateStep('step-onway');
+            });
+        };
+    }
+
+    if (completeBtn) {
+        completeBtn.onclick = function () {
+            fetch(`/orders/${orderId}/update-status/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'completed' })
+            }).then(() => {
+                socket.send(JSON.stringify({ status: 'completed' }));
+                activateStep('step-onway');
+                activateStep('step-delivered');
+            });
+        };
+    }
+});
+</script>
+    
+{% endblock %}
