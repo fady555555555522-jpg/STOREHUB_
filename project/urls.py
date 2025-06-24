@@ -9,5 +9,6 @@ urlpatterns = [
     path('api/', include('pages.api_urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
-handler404 = 'project.views.handel404'
-handler404 = 'project.views.handel500'
+handler404 = 'pages.views.handler404'
+handler500 = 'pages.views.handler500'
+
