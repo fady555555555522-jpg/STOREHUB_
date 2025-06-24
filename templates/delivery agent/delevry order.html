@@ -129,12 +129,30 @@ const icons = {
 };
 
 const markers = {};
+let routeLine = null;  // polyline direction
+let bounds = [];
 
 function updateMarker(role, lat, lng) {
     if (!markers[role]) {
         markers[role] = L.marker([lat, lng], { icon: icons[role] }).addTo(map).bindPopup(role);
     } else {
         markers[role].setLatLng([lat, lng]);
+    }
+
+    bounds.push([lat, lng]);
+
+    if (role === 'saler' || role === 'user') {
+        if (markers['saler'] && markers['user']) {
+            const from = markers['saler'].getLatLng();
+            const to = markers['user'].getLatLng();
+            
+            if (routeLine) map.removeLayer(routeLine);
+            routeLine = L.polyline([from, to], { color: 'blue', weight: 4 }).addTo(map);
+        }
+
+        if (bounds.length >= 2) {
+            map.fitBounds(bounds, { padding: [50, 50] });
+        }
     }
 }
 
@@ -231,5 +249,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
+
     
 {% endblock %}
