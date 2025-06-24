@@ -205,6 +205,8 @@ MESSAGE_TAGS = {
 # ===========
 # JAZZMIN ADMIN
 # ===========
+
+#admin panel
 JAZZMIN_SETTINGS = {
     'copyright': 'FADY ASHRAF',
     'site_title': "STOREHUB",
@@ -219,15 +221,15 @@ JAZZMIN_SETTINGS = {
     'login_logo_small_dark': 'images/LOGO1.png',
     'login_logo_small_light': 'images/LOGO1.png',
     'login_logo_small_alt': 'images/LOGO1.png',
-    "welcome_sign": "Welcome to STOREHUB Admin Panel",
-    "show_sidebar": True,
-    "navigation_expanded": True,
-    "theme": "dark",
+    "welcome_sign": "Welcome to STOREHUB Admin Panel",  
+    "show_sidebar": True, 
+    "navigation_expanded": True, 
+    "theme": "dark", 
     "costmize_botton": True,
     "show_ui_builder": True,
-    "changeform_format": "horizontal_tabs",
+    "changeform_format": "horizontal_tabs",  
     "related_modal_active": True,
-}
+}    
 
 JAZZMIN_UI_TWEAKS = {
     "theme": "darkly",
