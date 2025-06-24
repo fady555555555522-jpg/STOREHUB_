@@ -948,7 +948,7 @@ def my_orders_view(request):
         'orders': orders,
         'status_filter': status_filter or 'all',
     }
-    return render(request, 'delivery agent/my_orders_view.html', context)
+    return render(request, 'delivery agent/my_orders_view.HTML', context)
 
 
 
