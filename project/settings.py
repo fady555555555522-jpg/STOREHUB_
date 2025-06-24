@@ -177,7 +177,7 @@ SOCIALACCOUNT_AUTO_SIGNUP = False
 # ================
 # GOOGLE OAUTH
 # ================
-REDIRECT_URI = 'http://localhost:8000/accounts/google/login/callback/'
+REDIRECT_URI = 'https://storehub-production.up.railway.app/accounts/google/login/callback/'
 SOCIALACCOUNT_PROVIDERS = {
     'google': {
         'SCOPE': ['profile', 'email'],
