@@ -756,8 +756,8 @@ def create_checkout_session(request):
         payment_method_types=['card'],
         line_items=line_items,
         mode='payment',
-        success_url='http://127.0.0.1:8000/order_success/',
-        cancel_url='http://127.0.0.1:8000/cart/',
+        success_url='http://storehub-production.up.railway.app/order_success/',
+        cancel_url='http://storehub-production.up.railway.app/cart/',
         metadata={'user_id': str(request.user.id)},
     )
 
@@ -1343,8 +1343,8 @@ def create_wallet_checkout_session(request):
                 'quantity': 1,
             }],
             mode='payment',
-            success_url='http://127.0.0.1:8000/wallet/charge/success/?session_id={CHECKOUT_SESSION_ID}',
-            cancel_url='http://127.0.0.1:8000/',
+            success_url='http://storehub-production.up.railway.app/wallet/charge/success/?session_id={CHECKOUT_SESSION_ID}',
+            cancel_url='http://storehub-production.up.railway.app/',
             metadata={'user_id': str(request.user.id)},
         )
 
