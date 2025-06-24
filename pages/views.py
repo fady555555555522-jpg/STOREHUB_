@@ -955,7 +955,7 @@ def my_orders_view(request):
 def order_details(request, order_id):
     order = get_object_or_404(Order, id=order_id, customer=request.user)
     
-    return render(request, 'delivery agent/order_detail.html', {'order': order})
+    return render(request, 'delivery agent/order_detail.HTML', {'order': order})
 
 # views.py
 from django.shortcuts import render, get_object_or_404, redirect
