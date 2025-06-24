@@ -24,7 +24,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-6y!svxc#ynh52$al4&y^ql$u0kyob#s08+033t%oj)7ufui8w)'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
+CSRF_TRUSTED_ORIGINS = ['https://storehub-production.up.railway.app']
 ALLOWED_HOSTS = ['storehub-production.up.railway.app']
 
 # SECURITY settings (معدلة لتجنب مشاكل 502 مع SQLite مؤقتًا)
