@@ -1,18 +1,22 @@
 from pathlib import Path
 import os
+from django.contrib.messages import constants as message_constants
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 APPEND_SLASH = True
 
-
+# =========================
+# SECURITY & DEBUG SETTINGS
+# =========================
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", 'django-insecure-6y!svxc#ynh52$al4&y^ql$u0kyob#s08+033t%oj)7ufui8w)')
 DEBUG = True
 
 ALLOWED_HOSTS = [
-    'storehub-production.up.railway.app',
     '127.0.0.1',
-    'localhost'
+    'localhost',
+    'local.test',
+    'storehub-production.up.railway.app'
 ]
 
 CSRF_TRUSTED_ORIGINS = [
@@ -22,17 +26,20 @@ CSRF_TRUSTED_ORIGINS = [
 SECURE_SSL_REDIRECT = not DEBUG
 SESSION_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SECURE = not DEBUG
-
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 SESSION_COOKIE_HTTPONLY = True
 CSRF_COOKIE_HTTPONLY = True
 
+# ====================
+# APPLICATION SETTINGS
+# ====================
 INSTALLED_APPS = [
     'channels',
     'jazzmin',
     'pages.apps.PagesConfig',
+
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -40,24 +47,21 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'django.contrib.sites',
+
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
+
     'rest_framework',
     'rest_framework.authtoken',
 ]
 
 SITE_ID = 1
 
-ASGI_APPLICATION = 'project.asgi.application'
-
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
-    },
-}
-
+# ==========
+# MIDDLEWARE
+# ==========
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -69,8 +73,9 @@ MIDDLEWARE = [
     'allauth.account.middleware.AccountMiddleware',
 ]
 
-ROOT_URLCONF = 'project.urls'
-
+# =========
+# TEMPLATES
+# =========
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -91,8 +96,16 @@ TEMPLATES = [
     },
 ]
 
+# ===============
+# URL / ASGI / WSGI
+# ===============
+ROOT_URLCONF = 'project.urls'
 WSGI_APPLICATION = 'project.wsgi.application'
+ASGI_APPLICATION = 'project.asgi.application'
 
+# =========
+# DATABASES
+# =========
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -100,6 +113,9 @@ DATABASES = {
     }
 }
 
+# ======================
+# PASSWORD VALIDATION
+# ======================
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -107,11 +123,17 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
+# ==================
+# INTERNATIONALIZATION
+# ==================
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
+# ============
+# STATIC/MEDIA
+# ============
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'project/static')]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
@@ -119,7 +141,13 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+# ===============
+# AUTHENTICATION
+# ===============
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
 
 LOGIN_REDIRECT_URL = 'custom_redirect'
 LOGOUT_REDIRECT_URL = 'login'
@@ -142,26 +170,109 @@ ACCOUNT_SIGNUP_PASSWORD_ENTER_TWICE = True
 ACCOUNT_UNIQUE_EMAIL = True
 ACCOUNT_USERNAME_MIN_LENGTH = 4
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https'
-SITE_NAME = 'StoreHub'
-SITE_DOMAIN = 'storehub-production.up.railway.app'
+ACCOUNT_AUTHENTICATED_LOGIN_REDIRECTS = True
 
-AUTHENTICATION_BACKENDS = [
-    'django.contrib.auth.backends.ModelBackend',
-    'allauth.account.auth_backends.AuthenticationBackend',
-]
+SOCIALACCOUNT_AUTO_SIGNUP = False
 
+# ================
+# GOOGLE OAUTH
+# ================
+REDIRECT_URI = 'http://localhost:8000/accounts/google/login/callback/'
+SOCIALACCOUNT_PROVIDERS = {
+    'google': {
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+        'APP': {
+            'client_id': '1082526950831-pp90ki66g5dmodn72rlkfeapdgfpjgtb.apps.googleusercontent.com',
+            'secret': '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',
+            'key': ''
+        },
+        'OAUTH_PKCE_ENABLED': True,
+    }
+}
+
+# ====================
+# DJANGO MESSAGES TAGS
+# ====================
+MESSAGE_TAGS = {
+    message_constants.DEBUG: 'alert-info',
+    message_constants.INFO: 'alert-info',
+    message_constants.SUCCESS: 'alert-success',
+    message_constants.WARNING: 'alert-warning',
+    message_constants.ERROR: 'alert-danger',
+}
+
+# ===========
+# JAZZMIN ADMIN
+# ===========
+JAZZMIN_SETTINGS = {
+    'copyright': 'FADY ASHRAF',
+    'site_title': "STOREHUB",
+    'site_header': "STOREHUB",
+    'site_brand': "STOREHUB",
+    'site_icon': 'images/LOGO1.png',
+    'site_logo': 'images/LOGO1.png',
+    'login_logo': 'images/LOGO1.png',
+    'login_logo_dark': 'images/LOGO1.png',
+    'login_logo_light': 'images/LOGO1.png',
+    'login_logo_small': 'images/LOGO1.png',
+    'login_logo_small_dark': 'images/LOGO1.png',
+    'login_logo_small_light': 'images/LOGO1.png',
+    'login_logo_small_alt': 'images/LOGO1.png',
+    "welcome_sign": "Welcome to STOREHUB Admin Panel",
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "theme": "dark",
+    "costmize_botton": True,
+    "show_ui_builder": True,
+    "changeform_format": "horizontal_tabs",
+    "related_modal_active": True,
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "theme": "darkly",
+    "dark_mode_theme": "darkly",
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-dark",
+    "accent": "accent-primary",
+    "navbar": "navbar-white navbar-light",
+    "no_navbar_border": False,
+    "sidebar": "sidebar-dark-primary",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": False,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+}
+
+# ===================
+# EMAIL CONFIGURATION
+# ===================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'fady555555555522@gmail.com')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'lpbuadmsusnifjqv')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', 'lpbu adms usni fjqv')
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
 ACCOUNT_ADAPTER = 'pages.adapters.CustomAccountAdapter'
 ACCOUNT_PASSWORD_RESET_TOKEN_GENERATOR = 'django.contrib.auth.tokens.PasswordResetTokenGenerator'
 ACCOUNT_PASSWORD_RESET_TOKEN_EXPIRY = 24
 
+# ============
+# STRIPE KEYS
+# ============
+STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "sk_test_51RauUlGfwzChTOC8PXXS8sRr3jVsdP7Zq03T9fLCM3Y3gS2G286RudvtAvCjdU2OjMw59W4AQJeRD9mn7T3gnunr00m5d9MHP8")
+STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "pk_test_51RauUlGfwzChTOC83HiX3g5umkw5xUvSIsRPC9mx1J4pmNDmLRY7FfPC1Uim33AH1UAmHec9c4qb2PP3QcGReVPK00DOxuCePe")
+
+# ====================
+# REST FRAMEWORK
+# ====================
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
@@ -171,6 +282,11 @@ REST_FRAMEWORK = {
     ],
 }
 
-STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "sk_test_51RauUlGfwzChTOC8PXXS8sRr3jVsdP7Zq03T9fLCM3Y3gS2G286RudvtAvCjdU2OjMw59W4AQJeRD9mn7T3gnunr00m5d9MHP8")
-STRIPE_PUBLISHABLE_KEY = os.environ.get("STRIPE_PUBLISHABLE_KEY", "pk_test_51RauUlGfwzChTOC83HiX3g5umkw5xUvSIsRPC9mx1J4pmNDmLRY7FfPC1Uim33AH1UAmHec9c4qb2PP3QcGReVPK00DOxuCePe")
-
+# ====================
+# CHANNEL LAYERS
+# ====================
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    },
+}
