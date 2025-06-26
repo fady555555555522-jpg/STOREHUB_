@@ -36,7 +36,7 @@
               onclick="window.location.href='/product/{{ product.id }}/'"
             />
           </div>
-          <button class="add-to-cart">
+          <button class="add-to-cart" data-id="{{ product.id }}">
             <i class="fas fa-shopping-cart"></i> Add To Cart
           </button>
           <p class="detail">{{ product.name }}</p>
@@ -73,7 +73,7 @@
               onclick="window.location.href='/product/{{ product.id }}/'"
             />
           </div>
-          <button class="add-to-cart">
+          <button class="add-to-cart" data-id="{{ product.id }}">
             <i class="fas fa-shopping-cart"></i> Add To Cart
           </button>
           <p class="detail">{{ product.name }}</p>
@@ -97,6 +97,7 @@
       </div>
     </div>
     <script src="{% static 'js/wishlist.js' %}"></script>
+    <script src="{% static 'js/allproduct.js' %}"></script>
   </body>
 </html>
 {% endblock content %}
