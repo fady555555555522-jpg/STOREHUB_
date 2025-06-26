@@ -109,146 +109,175 @@
         </div>
     </div>
 </div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
-<script>
-const orderId = "{{ order.id }}";
-const userRole = "{{ request.user.userprofile.role }}";
 
-const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
-const socket = new WebSocket(`${wsProtocol}://${window.location.host}/ws/order_tracking/${orderId}/`);
-
-let map = L.map('map').setView([{{ client_lat|default:0 }}, {{ client_lng|default:0 }}], 13);
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors'
-}).addTo(map);
-
-const icons = {
-    delivery_agent: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/1048/1048314.png', iconSize: [40, 40] }),
-    saler: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png', iconSize: [40, 40] }),
-    user: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/1946/1946429.png', iconSize: [40, 40] })
-};
-
-const markers = {};
-let routeLine = null;  // polyline direction
-let bounds = [];
-
-function updateMarker(role, lat, lng) {
-    if (!markers[role]) {
-        markers[role] = L.marker([lat, lng], { icon: icons[role] }).addTo(map).bindPopup(role);
-    } else {
-        markers[role].setLatLng([lat, lng]);
-    }
-
-    bounds.push([lat, lng]);
-
-    if (role === 'saler' || role === 'user') {
-        if (markers['saler'] && markers['user']) {
-            const from = markers['saler'].getLatLng();
-            const to = markers['user'].getLatLng();
-            
-            if (routeLine) map.removeLayer(routeLine);
-            routeLine = L.polyline([from, to], { color: 'blue', weight: 4 }).addTo(map);
-        }
-
-        if (bounds.length >= 2) {
-            map.fitBounds(bounds, { padding: [50, 50] });
-        }
-    }
-}
-
-socket.onmessage = function (event) {
-    const data = JSON.parse(event.data);
-
-    if (data.lat && data.lng && data.role) {
-        updateMarker(data.role, data.lat, data.lng);
-    }
-
-    if (data.status) {
-        const statusText = document.getElementById('orderStatus');
-        if (statusText) {
-            statusText.textContent = `🚚 حالة الطلب: ${data.status}`;
-        }
-
-        if (data.status === 'in_progress' || data.status === 'on_way') {
-            activateStep('step-onway');
-        }
-
-        if (data.status === 'completed') {
-            activateStep('step-onway');
-            activateStep('step-delivered');
-        }
-    }
-};
-
-function activateStep(stepId) {
-    const step = document.getElementById(stepId);
-    if (step) {
-        step.style.color = '#000';
-        const icon = step.querySelector('i');
-        if (icon && icon.classList.contains('fa-circle')) {
-            icon.classList.remove('fa-regular', 'fa-circle');
-            icon.classList.add('fa-solid', 'fa-circle-check');
-            icon.style.color = 'var(--main-color)';
-        }
-        const timeSpan = step.querySelector('span:last-child');
-        if (timeSpan && timeSpan.textContent.trim() === '-') {
-            const now = new Date();
-            timeSpan.textContent = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-        }
-    }
-}
-
-function sendMyLiveLocation() {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(function(position) {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            socket.send(JSON.stringify({ role: userRole, lat, lng }));
-            updateMarker(userRole, lat, lng);
-        });
-
-        navigator.geolocation.watchPosition(function (position) {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            socket.send(JSON.stringify({ role: userRole, lat, lng }));
-            updateMarker(userRole, lat, lng);
-        });
-    }
-}
-sendMyLiveLocation();
-
-document.addEventListener('DOMContentLoaded', function () {
-    const startBtn = document.getElementById('startDeliveryBtn');
-    const completeBtn = document.getElementById('completeDeliveryBtn');
-
-    if (startBtn) {
-        startBtn.onclick = function () {
-            fetch(`/orders/${orderId}/update-status/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'in_progress' })
-            }).then(() => {
-                socket.send(JSON.stringify({ status: 'in_progress' }));
-                activateStep('step-onway');
-            });
-        };
-    }
-
-    if (completeBtn) {
-        completeBtn.onclick = function () {
-            fetch(`/orders/${orderId}/update-status/`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'completed' })
-            }).then(() => {
-                socket.send(JSON.stringify({ status: 'completed' }));
-                activateStep('step-onway');
-                activateStep('step-delivered');
-            });
-        };
-    }
-});
-</script>
-
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+  const orderId = "{{ order.id }}";
+  const userRole = "{{ request.user.userprofile.role }}";
+  const ORS_API_KEY = "5b3ce3597851110001cf624814abb58db6744e1eb9380caa4e6e30e4";
+  const defaultSalerLatLng = [28.0934, 30.7444]; // المنيا الجديدة fallback
+  
+  const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const socket = new WebSocket(`${wsProtocol}://${window.location.host}/ws/order_tracking/${orderId}/`);
+  
+  let map = L.map('map').setView([{{ client_lat|default:0 }}, {{ client_lng|default:0 }}], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+  
+  const icons = {
+      delivery_agent: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/1048/1048314.png', iconSize: [40, 40] }),
+      saler: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/2972/2972185.png', iconSize: [40, 40] }),
+      user: L.icon({ iconUrl: 'https://cdn-icons-png.flaticon.com/512/1946/1946429.png', iconSize: [40, 40] })
+  };
+  
+  const markers = {};
+  let route1 = null, route2 = null;
+  let defaultSalerPlotted = false;
+  
+  function updateMarker(role, lat, lng) {
+      if (!markers[role]) {
+          markers[role] = L.marker([lat, lng], { icon: icons[role] }).addTo(map).bindPopup(role);
+      } else {
+          markers[role].setLatLng([lat, lng]);
+      }
+  
+      // بعد ظهور العميل والمندوب، تأكد من السيلر
+      if (markers['delivery_agent'] && markers['user']) {
+          if (!markers['saler'] && !defaultSalerPlotted) {
+              markers['saler'] = L.marker(defaultSalerLatLng, { icon: icons['saler'] })
+                  .addTo(map).bindPopup('saler (default)');
+              defaultSalerPlotted = true;
+          }
+  
+          const from1 = markers['delivery_agent'].getLatLng();
+          const to1 = markers['saler'].getLatLng();
+          const from2 = to1;
+          const to2 = markers['user'].getLatLng();
+  
+          drawRoute(from1, to1, 'orange', line => {
+              if (route1) map.removeLayer(route1);
+              route1 = line.addTo(map);
+          });
+  
+          drawRoute(from2, to2, 'blue', line => {
+              if (route2) map.removeLayer(route2);
+              route2 = line.addTo(map);
+          });
+  
+          const bounds = L.latLngBounds([from1, to1, to2]);
+          map.fitBounds(bounds, { padding: [50, 50] });
+      }
+  }
+  
+  function drawRoute(from, to, color, callback) {
+      const url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${ORS_API_KEY}&start=${from.lng},${from.lat}&end=${to.lng},${to.lat}`;
+  
+      fetch(url)
+          .then(res => res.json())
+          .then(data => {
+              const coords = data.features[0].geometry.coordinates.map(c => [c[1], c[0]]);
+              const polyline = L.polyline(coords, { color: color, weight: 5 });
+              callback(polyline);
+          })
+          .catch(err => console.error("Route error:", err));
+  }
+  
+  socket.onmessage = function (event) {
+      const data = JSON.parse(event.data);
+  
+      if (data.lat && data.lng && data.role) {
+          updateMarker(data.role, data.lat, data.lng);
+      }
+  
+      if (data.status) {
+          const statusText = document.getElementById('orderStatus');
+          if (statusText) {
+              statusText.textContent = `🚚 حالة الطلب: ${data.status}`;
+          }
+  
+          if (data.status === 'in_progress' || data.status === 'on_way') {
+              activateStep('step-onway');
+          }
+  
+          if (data.status === 'completed') {
+              activateStep('step-onway');
+              activateStep('step-delivered');
+          }
+      }
+  };
+  
+  function activateStep(stepId) {
+      const step = document.getElementById(stepId);
+      if (step) {
+          step.style.color = '#000';
+          const icon = step.querySelector('i');
+          if (icon && icon.classList.contains('fa-circle')) {
+              icon.classList.remove('fa-regular', 'fa-circle');
+              icon.classList.add('fa-solid', 'fa-circle-check');
+              icon.style.color = 'var(--main-color)';
+          }
+          const timeSpan = step.querySelector('span:last-child');
+          if (timeSpan && timeSpan.textContent.trim() === '-') {
+              const now = new Date();
+              timeSpan.textContent = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+          }
+      }
+  }
+  
+  function sendMyLiveLocation() {
+      if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(pos => {
+              const lat = pos.coords.latitude;
+              const lng = pos.coords.longitude;
+              socket.send(JSON.stringify({ role: userRole, lat, lng }));
+              updateMarker(userRole, lat, lng);
+          });
+  
+          navigator.geolocation.watchPosition(pos => {
+              const lat = pos.coords.latitude;
+              const lng = pos.coords.longitude;
+              socket.send(JSON.stringify({ role: userRole, lat, lng }));
+              updateMarker(userRole, lat, lng);
+          });
+      }
+  }
+  sendMyLiveLocation();
+  
+  document.addEventListener('DOMContentLoaded', function () {
+      const startBtn = document.getElementById('startDeliveryBtn');
+      const completeBtn = document.getElementById('completeDeliveryBtn');
+  
+      if (startBtn) {
+          startBtn.onclick = function () {
+              fetch(`/orders/${orderId}/update-status/`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: 'in_progress' })
+              }).then(() => {
+                  socket.send(JSON.stringify({ status: 'in_progress' }));
+                  activateStep('step-onway');
+              });
+          };
+      }
+  
+      if (completeBtn) {
+          completeBtn.onclick = function () {
+              fetch(`/orders/${orderId}/update-status/`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: 'completed' })
+              }).then(() => {
+                  socket.send(JSON.stringify({ status: 'completed' }));
+                  activateStep('step-onway');
+                  activateStep('step-delivered');
+              });
+          };
+      }
+  });
+  </script>
+  
     
 {% endblock %}
