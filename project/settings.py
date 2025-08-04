@@ -16,11 +16,11 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     'localhost',
     'local.test',
-    'storehub-production.up.railway.app'
+    'storehub-production-ae05.up.railway.app'
 ]
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://storehub-production.up.railway.app'
+    'https://storehub-production-ae05.up.railway.app'
 ]
 
 SECURE_SSL_REDIRECT = not DEBUG
